@@ -1,9 +1,9 @@
 {
   "name": "dsh-desktop-restart",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Quick restart button for the whole DeepSeek Harness desktop app, with a settings page to choose where it appears.",
+  "description": "Quick restart button for the whole DeepSeek Harness desktop app on Windows / macOS / Linux (incl. Flatpak / Snap / AppImage), with a settings page to choose where it appears.",
   "keywords": [
     "dsh",
     "dsh-plugin",

@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
         'settings.menuHint': 'A “Restart app” row inside the sidebar panel list’s More menu.',
         'settings.restartNow': 'Restart now',
         'settings.ready': 'Ready. The app executable is {exe}.',
+        'settings.target': 'Launch target: {kind} · {target}',
         'settings.unavailable':
           'Restart is only available inside the desktop app. This session is running in a web or headless host, so the restart entry is disabled.',
         'settings.error': 'Last error: {msg}',
@@ -44,6 +45,7 @@ window.__ModuleLoader__.load({
         'settings.menuHint': '在侧边栏全局面板列表的「更多」菜单中显示「重启应用」一项。',
         'settings.restartNow': '立即重启',
         'settings.ready': '已就绪，应用可执行文件为 {exe}。',
+        'settings.target': '启动目标：{kind} · {target}',
         'settings.unavailable':
           '重启仅在桌面版应用中可用。当前运行在网页版或无界面宿主中，因此重启入口已禁用。',
         'settings.error': '最近一次错误：{msg}',
@@ -78,6 +80,7 @@ window.__ModuleLoader__.load({
 .dsrSwitch:disabled{opacity:.5;cursor:default}
 .dsrNotice{font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);margin:0}
 .dsrNotice.isWarn{color:var(--dsw-alias-state-warn-label,#946200)}
+.dsrDebug{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.5;color:var(--dsw-alias-label-tertiary);word-break:break-all}
 .dsrPrimary{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 16px;border:0;border-radius:9px;background:var(--dsw-alias-brand-primary);color:#fff;font:inherit;font-size:14px;font-weight:500;cursor:pointer}
 .dsrPrimary:hover:not(:disabled){filter:brightness(1.05)}
 .dsrPrimary:disabled{opacity:.55;cursor:default}
@@ -158,6 +161,7 @@ window.__ModuleLoader__.load({
         available: detectDesktop(),
         reason: null,
         exeName: null,
+        launch: null,
         error: null,
       },
       listeners: new Set(),
@@ -191,6 +195,7 @@ window.__ModuleLoader__.load({
               available: !!r.available || detectDesktop(),
               reason: r.reason || null,
               exeName: r.exeName || null,
+              launch: r.launch || null,
               error: null,
             })
           })
@@ -359,7 +364,18 @@ window.__ModuleLoader__.load({
             h('span', null, t('settings.restartNow')),
           ),
           state.available
-            ? h('p', { className: 'dsrNotice', style: { marginTop: '10px' } }, t('settings.ready', { exe: state.exeName || '' }))
+            ? h(
+                'div',
+                { style: { marginTop: '10px' } },
+                h('p', { className: 'dsrNotice' }, t('settings.ready', { exe: state.exeName || '' })),
+                state.launch
+                  ? h(
+                      'p',
+                      { className: 'dsrDebug', title: state.launch.exePath || '' },
+                      t('settings.target', { kind: state.launch.kind, target: state.launch.target }),
+                    )
+                  : null,
+              )
             : h('p', { className: 'dsrNotice isWarn', style: { marginTop: '10px' } }, t('settings.unavailable')),
         ),
         state.error ? h('p', { className: 'dsrNotice isWarn' }, t('settings.error', { msg: state.error })) : null,

@@ -10,13 +10,15 @@ DSH 桌面版本身没有「重启应用」的按钮，改了配置或装了新�
 本插件在侧边栏面板列表的「更多 ⋯」菜单里加入一个 **重启应用** 入口，点一下即可关掉并重新拉起整个桌面应用；
 同时提供一个设置页，用于 **显示 / 隐藏** 该入口，以及「立即重启」。
 
+支持 **Windows / macOS / Linux** 桌面版（详见下文「平台与兼容性」）。
+
 ## 功能
 
 - **侧边栏「更多」菜单入口**：位于左侧栏面板列表右上角的「更多 ⋯」菜单中，图标尺寸与颜色和宿主原生菜单项保持一致。
-- **一键重启整个应用**：不只是刷新页面，而是结束当前进程并重新启动 `DeepSeek Harness.exe`。
+- **一键重启整个应用**：不只是刷新页面，而是结束当前进程并重新启动整个桌面应用。
 - **设置页**：在「设置 → 桌面版重启」中可开关「在更多菜单中显示」，并可「立即重启」。
 - **持久化**：开关状态保存在 `~/.dsh/desktop-restart-plugin.json`，默认开启。
-- **安全降级**：在非桌面环境（Web / 无头 / 非 Windows）下自动隐藏入口，不会误操作。
+- **安全降级**：在非桌面环境（Web / 无头）下自动隐藏入口，不会误操作。
 
 ## 效果
 
@@ -76,20 +78,25 @@ plugin_manager  action: install_bundle  target: <本仓库绝对路径>
 ## 工作原理
 
 1. 点击「重启应用」后，界面通过同源请求调用宿主插件注册的接口 `POST /api/dsh-desktop-restart`（`action: "restart"`）。
-2. 宿主插件（运行在 DSH 桌面版的宿主子进程中）在系统临时目录 `%TEMP%\dsh-desktop-restart\` 生成一个 `.bat` 帮助脚本。
+2. 宿主插件（运行在 DSH 桌面版的宿主子进程中）在系统临时目录生成一个帮助脚本（Windows 为 `.bat`，macOS / Linux 为 `.sh`）。
 3. 该脚本以 **detached（脱离父进程）** 的方式启动，因此能在应用被结束后继续存活：
-   - 用 `taskkill /F /IM "DeepSeek Harness.exe"` 结束应用进程；
-   - 再用 `powershell Stop-Process` 兜底结束残留进程；
-   - 清除 `ELECTRON_RUN_AS_NODE` 环境变量，`cd` 到应用目录后 `start "" "<应用 exe>"` 重新拉起。
-4. 执行日志写入 `%TEMP%\dsh-desktop-restart\restart.log`，便于排查。
+   - **Windows**：`taskkill /F /IM "DeepSeek Harness.exe"` 结束后应用进程，`powershell Stop-Process` 兜底；清除 `ELECTRON_RUN_AS_NODE`，`cd` 到安装目录后 `start "" "<应用 exe>"` 重新拉起。
+   - **macOS**：`pkill -f "<应用二进制>"` 结束后应用进程；清除 `ELECTRON_RUN_AS_NODE`，用 `open -n "<DeepSeek Harness.app>"` 重新打开应用包。
+   - **Linux**：`pkill -f "<应用二进制>"` 结束后应用进程；清除 `ELECTRON_RUN_AS_NODE`，再按运行方式重启：Flatpak（`$FLATPAK_ID`）优先 `flatpak-spawn --host flatpak run`，其次 `flatpak run`；Snap（`$SNAP`）用 `snap run`；AppImage 用 `$APPIMAGE`；否则直接重启可执行文件（含上面的兜底）。
+4. 执行日志写入临时目录下的 `dsh-desktop-restart/restart.log`，便于排查。
 
-> 之所以要「清除 `ELECTRON_RUN_AS_NODE`」：插件宿主子进程是以 `ELECTRON_RUN_AS_NODE=1` 启动的，若不清理，重启出的新进程会被当成纯 Node 运行而直接退出（无界面）。
+> 之所以要「清除 `ELECTRON_RUN_AS_NODE`」：插件宿主子进程是以 `ELECTRON_RUN_AS_NODE=1` 启动的，若不清理，重新拉起的进程会被当成纯 Node 运行而直接退出（无界面）。macOS 用 `open` 时由 LaunchServices 启动、通常不会继承该变量，但脚本仍统一清理以求稳妥。
 
 ## 平台与兼容性
 
-- **平台**：仅 **Windows** 桌面版（使用 `taskkill` / `Stop-Process` / `start`）。
+- **平台**：**Windows / macOS / Linux** 桌面版。
+  - Windows 使用 `taskkill` / `Stop-Process` / `start`；
+  - macOS 使用 `pkill` / `open -n`（对 `.app` 包）；
+  - Linux 使用 `pkill` / `nohup`（重启目标按 Flatpak → `flatpak run`、Snap → `snap run`、AppImage → `$APPIMAGE`、否则可执行文件 的顺序解析）。
 - **环境**：需要 DSH 桌面版（Electron）。Web / 无头环境会自动禁用并隐藏入口。
-- **验证环境**：DeepSeek Harness Desktop `0.2.2-rc.5`（Electron `44.x`，Node `24.x`）。
+- **验证环境**：Windows 上验证于 DeepSeek Harness Desktop `0.2.2-rc.5`（Electron `44.x`，Node `24.x`）；macOS / Linux 为按同构逻辑实现的脚本，建议在对应机器上实机确认。
+- **Linux 打包差异**：已内置 Flatpak / Snap 适配——检测 `$FLATPAK_ID` 时用 `flatpak run`（沙箱内优先 `flatpak-spawn --host`），检测 `$SNAP` 时用 `snap run`，并以直接执行二进制作为兜底；若受沙箱策略限制仍可能失败，可查看重启日志。
+- **启动目标调试**：设置页会显示本次实际解析到的启动目标（`kind · target`），便于在 Flatpak / Snap / AppImage 等环境下确认重启行为。
 
 ## 目录结构
 
@@ -125,8 +132,8 @@ node --check client.js
 
 ## 已知限制
 
-- 仅支持 Windows 桌面版。
-- 「重启」依赖系统命令（`taskkill` / `powershell` / `start`），在受限令牌或强策略环境中可能被拒绝。
+- 「重启」依赖系统命令（Windows：`taskkill` / `powershell` / `start`；macOS / Linux：`pkill` / `open` / `nohup`），在受限环境或强策略下可能被拒绝。
+- Linux 的 Flatpak / Snap 已做适配（`flatpak run` / `snap run`），但各沙箱策略差异较大，极端受限下仍可能无法自动重启，可查看 `restart.log` 定位。
 - 重启过程中应用会短暂退出，未保存的临时状态请自行留意。
 
 ## 许可证

@@ -9,13 +9,15 @@
 The DeepSeek Harness desktop app has no built-in "restart application" button, so after changing settings or installing a new plugin you often have to close and reopen it manually.
 This plugin adds a **Restart app** entry to the sidebar panel list's **More ⋯** menu — one click closes and relaunches the entire desktop app. It also ships a settings page to **show / hide** the entry and to restart immediately.
 
+Works on the **Windows / macOS / Linux** desktop app (see *Platform & compatibility* below).
+
 ## Features
 
 - **Sidebar "More" menu entry**: lives in the **More ⋯** menu at the top-right of the sidebar panel list; icon size and color match the host's native menu rows.
-- **One-click full restart**: not just a page reload — it terminates the current process and relaunches `DeepSeek Harness.exe`.
+- **One-click full restart**: not just a page reload — it terminates the current process and relaunches the whole desktop app.
 - **Settings page**: under *Settings → Desktop restart*, toggle *Show in More menu* and use *Restart now*.
 - **Persistent**: the toggle is stored in `~/.dsh/desktop-restart-plugin.json` and defaults to on.
-- **Safe degradation**: on non-desktop environments (web / headless / non-Windows) the entry is hidden automatically.
+- **Safe degradation**: on non-desktop environments (web / headless) the entry is hidden automatically.
 
 ## What it looks like
 
@@ -75,20 +77,25 @@ Example settings file:
 ## How it works
 
 1. Clicking **Restart app** calls the host route `POST /api/dsh-desktop-restart` (`action: "restart"`) via a same-origin request.
-2. The host plugin (running inside the desktop app's host child process) writes a `.bat` helper into `%TEMP%\dsh-desktop-restart\`.
+2. The host plugin (running inside the desktop app's host child process) writes a helper script into the system temp dir — `.bat` on Windows, `.sh` on macOS / Linux.
 3. The helper is launched **detached** so it survives the app being killed:
-   - `taskkill /F /IM "DeepSeek Harness.exe"` to stop the app;
-   - `powershell Stop-Process` as a fallback for any remaining processes;
-   - clear `ELECTRON_RUN_AS_NODE`, `cd` into the app directory, then `start "" "<app exe>"` to relaunch.
-4. A log is written to `%TEMP%\dsh-desktop-restart\restart.log` for troubleshooting.
+   - **Windows**: `taskkill /F /IM "DeepSeek Harness.exe"` to stop the app, `powershell Stop-Process` as a fallback; clear `ELECTRON_RUN_AS_NODE`, `cd` into the app directory, then `start "" "<app exe>"` to relaunch.
+   - **macOS**: `pkill -f "<app binary>"` to stop the app; clear `ELECTRON_RUN_AS_NODE`, then `open -n "<DeepSeek Harness.app>"` to reopen the app bundle.
+   - **Linux**: `pkill -f "<app binary>"` to stop the app; clear `ELECTRON_RUN_AS_NODE`, then relaunch according to the packaging: Flatpak (`$FLATPAK_ID`) prefers `flatpak-spawn --host flatpak run`, then `flatpak run`; Snap (`$SNAP`) uses `snap run`; AppImage uses `$APPIMAGE`; otherwise the executable directly (with the same fallback).
+4. A log is written to `dsh-desktop-restart/restart.log` in the temp dir for troubleshooting.
 
-> Why clear `ELECTRON_RUN_AS_NODE`: the plugin host child process is started with `ELECTRON_RUN_AS_NODE=1`. If not cleared, the relaunched process would run as plain Node and exit immediately (with no window).
+> Why clear `ELECTRON_RUN_AS_NODE`: the plugin host child process is started with `ELECTRON_RUN_AS_NODE=1`. If not cleared, the relaunched process would run as plain Node and exit immediately (with no window). On macOS `open` goes through LaunchServices and normally won't inherit it, but the script clears it anyway for safety.
 
 ## Platform & compatibility
 
-- **Platform**: **Windows** desktop only (uses `taskkill` / `Stop-Process` / `start`).
+- **Platform**: **Windows / macOS / Linux** desktop app.
+  - Windows uses `taskkill` / `Stop-Process` / `start`;
+  - macOS uses `pkill` / `open -n` (on the `.app` bundle);
+  - Linux uses `pkill` / `nohup` (the relaunch target is resolved as Flatpak → `flatpak run`, Snap → `snap run`, AppImage → `$APPIMAGE`, otherwise the executable).
 - **Environment**: requires the DSH desktop app (Electron). Web / headless environments hide the entry automatically.
-- **Verified against**: DeepSeek Harness Desktop `0.2.2-rc.5` (Electron `44.x`, Node `24.x`).
+- **Verified against**: DeepSeek Harness Desktop `0.2.2-rc.5` (Electron `44.x`, Node `24.x`) on Windows; the macOS / Linux paths are implemented from the same design and should be confirmed on the respective machines.
+- **Linux packaging**: Flatpak / Snap are adapted out of the box — `$FLATPAK_ID` triggers `flatpak run` (preferring `flatpak-spawn --host` inside the sandbox), `$SNAP` triggers `snap run`, with a direct-exec fallback; if a sandbox policy still blocks it, check the restart log.
+- **Launch-target debug**: the settings page shows the launch target actually resolved for this run (`kind · target`), so you can confirm restart behaviour under Flatpak / Snap / AppImage.
 
 ## Repository layout
 
@@ -124,8 +131,8 @@ node --check client.js
 
 ## Known limitations
 
-- Windows desktop only.
-- Restarting relies on system commands (`taskkill` / `powershell` / `start`), which may be denied under a restricted token or strict policy.
+- Restarting relies on system commands (Windows: `taskkill` / `powershell` / `start`; macOS / Linux: `pkill` / `open` / `nohup`), which may be denied under a restricted environment or strict policy.
+- Linux Flatpak / Snap are adapted (`flatpak run` / `snap run`), but sandbox policies vary widely, so a heavily restricted environment may still fail to auto-restart; check `restart.log` to diagnose.
 - The app briefly exits during a restart; make sure unsaved transient state is handled.
 
 ## License
