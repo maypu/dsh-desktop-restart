@@ -19,18 +19,17 @@ This plugin adds a **Restart app** entry to the sidebar panel list's **More ⋯*
 
 ## What it looks like
 
-After installation, open the **More ⋯** menu of the sidebar panel list:
+**① The "Restart app" entry in the sidebar "More ⋯" menu**
 
-```
-Sidebar panel list   ⋯ (More)
-                     ├─ Customize entries
-                     └─ Restart app        ← this plugin
-```
+After installation, open the **More ⋯** menu at the top-right of the sidebar panel list:
 
-*Settings → Desktop restart* contains:
+![Restart app entry in the sidebar More menu](docs/images/more-menu.png)
 
-- Switch: *Show in More menu*
-- Button: *Restart now*
+**② The "Settings → Desktop restart" page**
+
+The settings page contains a *Show "Restart app" in the panel "More" menu* switch and a *Restart now* button:
+
+![Settings page with the toggle and Restart now button](docs/images/settings-page.png)
 
 ## Installation
 
@@ -103,7 +102,8 @@ dsh-desktop-restart/
 │  ├─ en.json            # English metadata
 │  └─ zh.json            # Chinese metadata
 ├─ docs/
-│  └─ DETAIL.md          # Plugin detail page (referenced by meta.detail)
+│  ├─ DETAIL.md          # Plugin detail page (referenced by meta.detail)
+│  └─ images/            # README screenshots (more-menu.png, settings-page.png)
 ├─ icon.svg              # Plugin icon
 └─ LICENSE               # MIT
 ```
