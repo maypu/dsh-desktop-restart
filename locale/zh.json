@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "桌面版重启",
+    "description": "在侧边栏「更多」菜单中为整个 DeepSeek Harness 桌面版添加一键重启入口，并提供设置页控制显示。",
+    "detail": "docs/DETAIL.md"
+  }
+}

@@ -1,0 +1,4 @@
+- insert:
+    - id: desktop-restart
+      name: dsh-desktop-restart
+      config: {}

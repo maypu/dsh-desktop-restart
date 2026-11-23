@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Desktop restart",
+    "description": "Add a one-click restart entry for the whole DeepSeek Harness desktop app in the sidebar More menu, with a settings page to toggle it.",
+    "detail": "docs/DETAIL.md"
+  }
+}
